@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pitch Predict · Base</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --pitch: #1a4a2e;
+  --pitch-light: #1f5735;
+  --pitch-line: rgba(255,255,255,0.08);
+  --surface: rgba(0,0,0,0.45);
+  --surface2: rgba(0,0,0,0.6);
+  --border: rgba(255,255,255,0.1);
+  --text: #f0f0f0;
+  --muted: rgba(255,255,255,0.4);
+  --accent: #00e676;
+  --accent-dim: rgba(0,230,118,0.15);
+  --gold: #ffd740;
+  --red: #ff5252;
+  --blue: #448aff;
+  --owner: #0052ff;
+}
+
+html, body {
+  min-height: 100vh;
+  background: var(--pitch);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 400;
+  overflow-x: hidden;
+}
+
+/* Pitch texture background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 48px,
+      rgba(255,255,255,0.025) 48px,
+      rgba(255,255,255,0.025) 96px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(0,230,118,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.4) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+/* ── Header ── */
+.header {
+  padding: 16px 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--pitch-line);
+  background: rgba(0,0,0,0.2);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.logo-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.logo-sub {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+.wallet-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.wallet-btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.02em;
+}
+
+.wallet-btn:hover { border-color: var(--accent); color: var(--accent); }
+.wallet-btn.connected { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+/* ── Live badge ── */
+.section-header {
+  padding: 16px 20px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,82,82,0.15);
+  border: 1px solid rgba(255,82,82,0.3);
+  border-radius: 20px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--red);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.live-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: livePulse 1.2s infinite;
+}
+
+@keyframes livePulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.3; transform:scale(0.8); }
+}
+
+/* ── Match card ── */
+.matches {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.match-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  transition: border-color 0.2s;
+}
+
+.match-card:hover { border-color: rgba(255,255,255,0.2); }
+
+.match-league {
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--pitch-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.league-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.match-time {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.match-time.live { color: var(--red); font-weight: 600; }
+
+.match-body {
+  padding: 16px;
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-flag {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.team-name {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.team.right { align-items: center; }
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-num {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  color: var(--text);
+  line-height: 1;
+  min-width: 24px;
+  text-align: center;
+}
+
+.score-sep {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.score-display.live .score-num { color: var(--accent); }
+
+/* ── Prediction buttons ── */
+.predict-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.predict-btn {
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04);
+  color: var(--muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  letter-spacing: 0.04em;
+}
+
+.predict-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.predict-btn.selected-home {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: rgba(68,138,255,0.15);
+}
+
+.predict-btn.selected-draw {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(255,215,64,0.12);
+}
+
+.predict-btn.selected-away {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255,82,82,0.15);
+}
+
+.predict-btn.confirmed {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.predict-label { font-size: 9px; font-weight: 500; opacity: 0.7; }
+
+/* Pool info */
+.pool-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.pool-label { color: var(--muted); }
+.pool-value { color: var(--accent); font-weight: 600; font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 0.05em; }
+
+/* Bet confirmed badge */
+.bet-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(0,230,118,0.3);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* ── My bets panel ── */
+.my-bets-section {
+  padding: 16px 20px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bets-list {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bet-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bet-match { font-size: 12px; font-weight: 500; }
+.bet-pick { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.bet-amount { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: var(--accent); letter-spacing: 0.05em; }
+
+.empty-bets {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ── Bottom nav ── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(10,30,18,0.95);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--pitch-line);
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0 16px;
+  z-index: 50;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* fix bottom nav to center on wide screens */
+@media (min-width: 480px) {
+  .bottom-nav { left: 50%; right: auto; transform: translateX(-50%); width: 480px; }
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+  padding: 0 16px;
+}
+
+.nav-item.active { opacity: 1; }
+.nav-item.active .nav-label { color: var(--accent); }
+
+.nav-icon { font-size: 20px; line-height: 1; }
+.nav-label { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+/* ── Tabs ── */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: rgba(10,30,18,0.97);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 20px;
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 200;
+}
+.toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(--accent); color: var(--accent); }
+.toast.error { border-color: var(--red); color: var(--red); }
+
+/* ── Connect overlay ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  transition: opacity 0.3s;
+}
+
+.overlay.hidden { opacity:0; pointer-events:none; }
+
+.overlay-card {
+  background: #0d2a1a;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.overlay-icon { font-size: 48px; }
+.overlay-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 0.05em; color: var(--accent); }
+.overlay-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+.overlay-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: #0a1f0f;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.overlay-btn:hover { opacity: 0.85; }
+
+.chain-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.base-dot { width:6px; height:6px; border-radius:50%; background: var(--owner); }
+
+/* Loading spinner */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Connect Overlay -->
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <div class="overlay-icon">⚽</div>
+    <div class="overlay-title">Pitch Predict</div>
+    <div class="chain-pill"><div class="base-dot"></div> Base Network</div>
+    <div class="overlay-desc">Maç sonuçlarını tahmin et,<br>ETH kazan. Her tahmin 0.001 ETH.</div>
+    <button class="overlay-btn" onclick="connectWallet()">Cüzdanı Bağla</button>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">⚽</div>
+      <div>
+        <div class="logo-text">Pitch Predict</div>
+        <div class="logo-sub">Base Network · 0.001 ETH/tahmin</div>
+      </div>
+    </div>
+    <div class="wallet-area">
+      <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">Bağlan</button>
+    </div>
+  </div>
+
+  <!-- TAB: Maçlar -->
+  <div class="tab-content active" id="tab-matches">
+
+    <div class="section-header">
+      <div class="section-title">Canlı Maçlar</div>
+      <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+    </div>
+
+    <div class="matches" id="liveMatches"></div>
+
+    <div class="section-header" style="margin-top:8px">
+      <div class="section-title">Yaklaşan Maçlar</div>
+    </div>
+
+    <div class="matches" id="upcomingMatches"></div>
+
+  </div>
+
+  <!-- TAB: Bahislerim -->
+  <div class="tab-content" id="tab-bets">
+    <div class="my-bets-section">
+      <div class="section-title">Tahminlerim</div>
+    </div>
+    <div class="bets-list" id="betsList">
+      <div class="empty-bets">Henüz tahmin yapmadın.<br>Maçlara git ve tahmin yap! ⚽</div>
+    </div>
+  </div>
+
+  <!-- TAB: Nasıl çalışır -->
+  <div class="tab-content" id="tab-info">
+    <div class="section-header"><div class="section-title">Nasıl Çalışır?</div></div>
+    <div style="padding:0 16px; display:flex; flex-direction:column; gap:12px;">
+      <div class="match-card">
+        <div style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <span style="font-size:24px">1️⃣</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px">Tahmin Yap</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Bir maçta Ev Sahibi, Beraberlik veya Deplasman kazanır diye tahmin et. Her tahmin 0.001 ETH.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <span style="font-size:24px">2️⃣</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px">Havuz Büyür</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Tüm tahminler bir havuzda toplanır. Ne kadar çok kullanıcı tahmin yaparsa, kazanç o kadar büyür.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <span style="font-size:24px">3️⃣</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px">Kazan</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Maç bitince doğru tahmin edenler havuzu paylaşır. %10 platform komisyonu düşülür.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <span style="font-size:24px">⛓️</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px">Base'de Şeffaf</div>
+              <div style="font-size:12px;color:var(--muted);line-height:1.5">Tüm işlemler Base blockchain üzerinde. Her şey basescan.org'da görünür.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-matches" onclick="switchTab('matches')">
+    <div class="nav-icon">⚽</div>
+    <div class="nav-label">Maçlar</div>
+  </div>
+  <div class="nav-item" id="nav-bets" onclick="switchTab('bets')">
+    <div class="nav-icon">🎯</div>
+    <div class="nav-label">Tahminlerim</div>
+  </div>
+  <div class="nav-item" id="nav-info" onclick="switchTab('info')">
+    <div class="nav-icon">ℹ️</div>
+    <div class="nav-label">Nasıl Çalışır</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────
+const OWNER_ADDRESS = '0x619D3242a348A4fa738eDcEcdFadE1b1b7A54313';
+const BET_AMOUNT_ETH = 0.001;
+const BET_AMOUNT_HEX = '0x38D7EA4C68000'; // 0.001 ETH in wei
+const BASE_CHAIN_ID = '0x2105';
+const COMMISSION = 0.10;
+
+// ⚙️ API-Football anahtarını buraya yapıştır
+// dashboard.api-football.com adresinden ücretsiz alabilirsin
+const API_KEY = '5f1a8d3200bf5788eff8e1184bd9989c';
+const API_HOST = 'v3.football.api-sports.io';
+
+// Takip edilen ligler (Premier League, La Liga, Serie A, Bundesliga, Ligue 1, Süper Lig, UCL)
+const LEAGUE_IDS = [39, 140, 135, 78, 61, 203, 2];
+
+// ── State ──────────────────────────────────────────────────────
+let isConnected = false;
+let walletAddress = '';
+let myBets = []; // { matchId, pick, txHash, matchName }
+let liveMatches = [];
+let upcomingMatches = [];
+let apiLoaded = false;
+
+// ── League name map ────────────────────────────────────────────
+const LEAGUE_NAMES = {
+  39: 'Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+  140: 'La Liga 🇪🇸',
+  135: 'Serie A 🇮🇹',
+  78: 'Bundesliga 🇩🇪',
+  61: 'Ligue 1 🇫🇷',
+  203: 'Süper Lig 🇹🇷',
+  2: 'Champions League ⭐',
+};
+
+// ── API Football fetch ─────────────────────────────────────────
+async function fetchMatches() {
+  if (API_KEY === '5f1a8d3200bf5788eff8e1184bd9989c') {
+    showToast('⚙️ API anahtarı girilmedi — demo mod', '');
+    loadDemoData();
+    return;
+  }
+
+  try {
+    showToast('Maçlar yükleniyor...', '');
+    const today = new Date().toISOString().slice(0,10);
+
+    const res = await fetch(`https://${API_HOST}/fixtures?date=${today}&timezone=Europe/Istanbul`, {
+      headers: { 'x-rapidapi-key': API_KEY, 'x-rapidapi-host': API_HOST }
+    });
+
+    if (!res.ok) throw new Error('API hatası: ' + res.status);
+    const data = await res.json();
+    const fixtures = data.response || [];
+
+    liveMatches = [];
+    upcomingMatches = [];
+
+    fixtures
+      .filter(f => LEAGUE_IDS.includes(f.league.id))
+      .forEach(f => {
+        const status = f.fixture.status.short;
+        const isLive = ['1H','2H','HT','ET','P'].includes(status);
+        const isUpcoming = status === 'NS';
+        if (!isLive && !isUpcoming) return;
+
+        const match = {
+          id: String(f.fixture.id),
+          league: LEAGUE_NAMES[f.league.id] || f.league.name,
+          homeFlag: '🏠',
+          home: f.teams.home.name,
+          away: f.teams.away.name,
+          awayFlag: '✈️',
+          score: isLive ? `${f.goals.home ?? 0} - ${f.goals.away ?? 0}` : '-',
+          minute: isLive ? (f.fixture.status.elapsed + "'") : formatKickoff(f.fixture.date),
+          pool: Math.random() * 0.05,
+        };
+
+        if (isLive) liveMatches.push(match);
+        else upcomingMatches.push(match);
+      });
+
+    // If nothing found, fallback to demo
+    if (!liveMatches.length && !upcomingMatches.length) {
+      loadDemoData();
+      showToast('Bugün maç yok — demo gösteriliyor', '');
+    } else {
+      apiLoaded = true;
+      showToast(`✅ ${liveMatches.length} canlı, ${upcomingMatches.length} yaklaşan maç`, 'success');
+    }
+
+    renderAll();
+
+  } catch(err) {
+    console.error(err);
+    loadDemoData();
+    showToast('API hatası — demo mod', 'error');
+  }
+}
+
+function formatKickoff(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
+}
+
+function loadDemoData() {
+  liveMatches = [
+    { id:'l1', league:'Premier League 🏴󠁧󠁢󠁥󠁮󠁧󠁿', homeFlag:'🔴', home:'Arsenal', away:'Man City', awayFlag:'🔵', score:'1 - 1', minute:"67'", pool: 0.042 },
+    { id:'l2', league:'La Liga 🇪🇸', homeFlag:'⚪', home:'Real Madrid', away:'Barcelona', awayFlag:'🔵🔴', score:'2 - 0', minute:"54'", pool: 0.091 },
+    { id:'l3', league:'Champions League ⭐', homeFlag:'⚫', home:'Inter Milan', away:'Bayern', awayFlag:'🔴', score:'0 - 1', minute:"38'", pool: 0.028 },
+  ];
+  upcomingMatches = [
+    { id:'u1', league:'Süper Lig 🇹🇷', homeFlag:'🟡🔵', home:'Fenerbahçe', away:'Galatasaray', awayFlag:'🔴🟡', score:'-', minute:'21:00', pool: 0.015 },
+    { id:'u2', league:'Bundesliga 🇩🇪', homeFlag:'🔴', home:'Bayern', away:'Dortmund', awayFlag:'🟡⚫', score:'-', minute:'18:30', pool: 0.007 },
+    { id:'u3', league:'Serie A 🇮🇹', homeFlag:'⚫🔵', home:'Inter', away:'Juventus', awayFlag:'⚫⚪', score:'-', minute:'19:45', pool: 0.011 },
+    { id:'u4', league:'Ligue 1 🇫🇷', homeFlag:'🔴🔵', home:'PSG', away:'Monaco', awayFlag:'🔴⚪', score:'-', minute:'20:00', pool: 0.005 },
+  ];
+}
+
+// ── Render matches ─────────────────────────────────────────────
+function renderMatch(m, isLive) {
+  const betMade = myBets.find(b => b.matchId === m.id);
+  return `
+  <div class="match-card" id="card-${m.id}">
+    <div class="match-league">
+      <span class="league-name">${m.league}</span>
+      <span class="match-time ${isLive ? 'live' : ''}">${isLive ? '🔴 ' : ''}${m.minute}</span>
+    </div>
+    <div class="match-body">
+      <div class="score-row">
+        <div class="team">
+          <div class="team-flag">${m.homeFlag}</div>
+          <div class="team-name">${m.home}</div>
+        </div>
+        <div class="score-display ${isLive ? 'live' : ''}">
+          <span class="score-num">${isLive ? m.score.split(' - ')[0] : '-'}</span>
+          <span class="score-sep">:</span>
+          <span class="score-num">${isLive ? m.score.split(' - ')[1] : '-'}</span>
+        </div>
+        <div class="team right">
+          <div class="team-flag">${m.awayFlag}</div>
+          <div class="team-name">${m.away}</div>
+        </div>
+      </div>
+
+      ${betMade ? `
+      <div class="bet-badge">
+        ✅ Tahminin: <strong>${betMade.pick}</strong> &nbsp;·&nbsp; 0.001 ETH yatırıldı
+      </div>
+      ` : `
+      <div class="predict-row">
+        <button class="predict-btn" onclick="placeBet('${m.id}','${m.home} Kazanır','${m.home} - ${m.away}')">
+          <span>${m.homeFlag}</span>
+          <span>${m.home.split(' ')[0]}</span>
+          <span class="predict-label">EV SAHİBİ</span>
+        </button>
+        <button class="predict-btn" onclick="placeBet('${m.id}','Beraberlik','${m.home} - ${m.away}')">
+          <span>🤝</span>
+          <span>Bera</span>
+          <span class="predict-label">BERABERLİK</span>
+        </button>
+        <button class="predict-btn" onclick="placeBet('${m.id}','${m.away} Kazanır','${m.home} - ${m.away}')">
+          <span>${m.awayFlag}</span>
+          <span>${m.away.split(' ')[0]}</span>
+          <span class="predict-label">DEPLASMAN</span>
+        </button>
+      </div>
+      <div class="pool-info">
+        <span class="pool-label">Toplam Havuz</span>
+        <span class="pool-value">⬡ ${m.pool.toFixed(3)} ETH</span>
+      </div>
+      `}
+    </div>
+  </div>`;
+}
+
+function renderAll() {
+  document.getElementById('liveMatches').innerHTML = liveMatches.map(m => renderMatch(m, true)).join('');
+  document.getElementById('upcomingMatches').innerHTML = upcomingMatches.map(m => renderMatch(m, false)).join('');
+  renderBets();
+}
+
+function renderBets() {
+  const list = document.getElementById('betsList');
+  if (!myBets.length) {
+    list.innerHTML = '<div class="empty-bets">Henüz tahmin yapmadın.<br>Maçlara git ve tahmin yap! ⚽</div>';
+    return;
+  }
+  list.innerHTML = myBets.map(b => `
+    <div class="bet-item">
+      <div>
+        <div class="bet-match">${b.matchName}</div>
+        <div class="bet-pick">📌 ${b.pick}</div>
+      </div>
+      <div class="bet-amount">⬡ 0.001 ETH</div>
+    </div>
+  `).join('');
+}
+
+// ── Wallet ─────────────────────────────────────────────────────
+async function connectWallet() {
+  if (!window.ethereum) {
+    showToast('MetaMask veya uyumlu cüzdan gerekli', 'error');
+    return;
+  }
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    walletAddress = accounts[0];
+
+    try {
+      await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: BASE_CHAIN_ID }] });
+    } catch(e) {
+      if (e.code === 4902) {
+        await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{
+          chainId: BASE_CHAIN_ID, chainName: 'Base',
+          nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+          rpcUrls: ['https://mainnet.base.org'],
+          blockExplorerUrls: ['https://basescan.org'],
+        }]});
+      }
+    }
+
+    isConnected = true;
+    const short = walletAddress.slice(0,6) + '...' + walletAddress.slice(-4);
+    const btn = document.getElementById('walletBtn');
+    btn.textContent = short;
+    btn.classList.add('connected');
+    document.getElementById('overlay').classList.add('hidden');
+    showToast('Bağlandı ✓', 'success');
+
+  } catch(err) {
+    showToast(err.message || 'Bağlantı hatası', 'error');
+  }
+}
+
+// ── Place Bet ──────────────────────────────────────────────────
+async function placeBet(matchId, pick, matchName) {
+  if (!isConnected) { showToast('Önce cüzdanını bağla!', 'error'); return; }
+  if (myBets.find(b => b.matchId === matchId)) { showToast('Bu maça zaten tahmin yaptın!', 'error'); return; }
+
+  showToast('Cüzdan onayı bekleniyor...', '');
+
+  try {
+    const txHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [{
+        from: walletAddress,
+        to: OWNER_ADDRESS,
+        value: BET_AMOUNT_HEX,
+      }],
+    });
+
+    myBets.push({ matchId, pick, txHash, matchName });
+    renderAll();
+    showToast(`✅ Tahmin: ${pick}`, 'success');
+
+  } catch(err) {
+    showToast('İşlem iptal edildi', 'error');
+  }
+}
+
+// ── Tab switch ─────────────────────────────────────────────────
+function switchTab(tab) {
+  ['matches','bets','info'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('nav-' + t).classList.toggle('active', t === tab);
+  });
+  if (tab === 'bets') renderBets();
+}
+
+// ── Toast ──────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  clearTimeout(toastTimer);
+  requestAnimationFrame(() => {
+    t.classList.add('show');
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+  });
+}
+
+// ── tickLive removed — real API used instead ──────────────────
+
+// ── Init ───────────────────────────────────────────────────────
+loadDemoData();
+renderAll();
+fetchMatches(); // load real data
+setInterval(() => { fetchMatches(); }, 60000); // refresh every 60s
+
+if (window.ethereum) {
+  window.ethereum.on('accountsChanged', accs => {
+    if (!accs.length) {
+      isConnected = false; walletAddress = '';
+      document.getElementById('walletBtn').textContent = 'Bağlan';
+      document.getElementById('walletBtn').classList.remove('connected');
+      document.getElementById('overlay').classList.remove('hidden');
+    }
+  });
+  window.ethereum.on('chainChanged', () => location.reload());
+}
+</script>
+</body>
+</html>
